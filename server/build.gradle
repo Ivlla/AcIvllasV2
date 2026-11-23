@@ -1,0 +1,22 @@
+import java.nio.file.Files
+sourceSets.test.java.srcDir(rootProject.file('checks'))
+def storeCheck = tasks.register('storeCheck', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'org.acivllas.StoreCheck'
+    doFirst {
+        def parent = layout.buildDirectory.dir('checks').get().asFile.toPath()
+        Files.createDirectories(parent)
+        args Files.createTempDirectory(parent, 'store-').toString()
+    }
+}
+def ticketCheck = tasks.register('ticketCheck', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'org.acivllas.TicketCheck'
+}
+tasks.named('check') { dependsOn storeCheck, ticketCheck }
+
+if (providers.gradleProperty("protectClient").isPresent()) {
+    apply from: rootProject.file('protection.gradle')
+}

@@ -1,0 +1,20 @@
+modLoader="javafml"
+loaderVersion="[47,48)"
+license="AcIvllas Proprietary License"
+[[mods]]
+modId="acivllas"
+version="2.2.0"
+displayName="AcIvllas (server)"
+description="AcIvllas integrity reporting for dedicated servers."
+[[dependencies.acivllas]]
+modId="forge"
+mandatory=true
+versionRange="[47.4.10,48)"
+ordering="NONE"
+side="BOTH"
+[[dependencies.acivllas]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1]"
+ordering="NONE"
+side="BOTH"

@@ -1,0 +1,37 @@
+// Obfuscate application classes before Forge remaps Minecraft references.
+configurations { proguardTool }
+dependencies { proguardTool 'com.guardsquare:proguard-base:7.5.0' }
+
+def namedInput = tasks.register('namedInput', Jar) {
+    archiveClassifier = 'named-input'
+    from(sourceSets.main.output) { exclude 'org/acivllas/audit/**' }
+}
+def protectedClasses = layout.buildDirectory.file('proguard/classes.jar')
+def rules = rootProject.file('proguard.pro')
+def protect = tasks.register('protectClasses', JavaExec) {
+    dependsOn namedInput
+    classpath = configurations.proguardTool
+    mainClass = 'proguard.ProGuard'
+    inputs.file(namedInput.flatMap { it.archiveFile })
+    inputs.file(rules)
+    inputs.files(sourceSets.main.compileClasspath)
+    outputs.file(protectedClasses)
+    outputs.file(layout.buildDirectory.file('proguard/mapping.txt'))
+    doFirst {
+        def out = protectedClasses.get().asFile
+        out.parentFile.mkdirs()
+        args '-include', rules, '-injars', namedInput.get().archiveFile.get().asFile,
+                '-outjars', out, '-printmapping', new File(out.parentFile, 'mapping.txt')
+        def jdk = javaToolchains.compilerFor(java.toolchain).get().metadata.installationPath.asFile
+        fileTree(new File(jdk, 'jmods')).matching { include '*.jmod' }.files.sort().each {
+            args '-libraryjars', it.absolutePath + '(!**.jar;!module-info.class)'
+        }
+        sourceSets.main.compileClasspath.files.each { args '-libraryjars', it.absolutePath }
+    }
+}
+tasks.register('protectedJar', Jar) {
+    dependsOn protect
+    archiveClassifier = 'protected'
+    from({ zipTree(protectedClasses.get().asFile) }) { exclude 'META-INF/MANIFEST.MF' }
+}
+reobf { protectedJar {} }

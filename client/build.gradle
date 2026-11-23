@@ -1,0 +1,10 @@
+if (providers.gradleProperty("protectClient").isPresent()) {
+    apply from: rootProject.file('protection.gradle')
+}
+
+def hardwareCheck = tasks.register('hardwareCheck', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'org.acivllas.HardwareCheck'
+}
+tasks.named('check') { dependsOn hardwareCheck }
