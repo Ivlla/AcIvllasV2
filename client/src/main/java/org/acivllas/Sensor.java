@@ -115,7 +115,7 @@ public final class Sensor {
         try (var listing = Files.list(FMLPaths.MODSDIR.get())) {
             listing.filter(f -> f.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".jar"))
                     .limit(2000).forEach(jars::add);
-        } catch (IOException | UncheckedIOException | RuntimeException unavailable) { /* mods folder unreadable */ }
+        } catch (IOException | RuntimeException unavailable) { /* mods folder unreadable */ }
         boolean found = false;
         for (Path file : jars) if (familyJar(file)) { found = true; break; }
         archiveResult = found;
