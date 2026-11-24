@@ -31,12 +31,22 @@ public final class Guard {
         String token;
         String state = "ожидание отчета";
         long nextProbe;
+        int weakStreak;
         final Set<String> signals = new LinkedHashSet<>();
     }
+    private static final String R_DD = "Forge видит мод dd";
+    private static final String R_SAMPLE = "обнаружены признаки образца чита (имена классов или структура JAR)";
+    private static final String R_INJECTOR = "запущен другой процесс Java с JAR из семейства образца (возможный инжектор)";
+    private static final String R_REGION = "в памяти игры есть приватный исполняемый регион (возможна ручная загрузка кода)";
     private final Map<Connection,Session> sessions = new HashMap<>();
     private boolean offlineMode;
     private boolean enforceFlags;
     private boolean kickOnHashMismatch = true;
+    private boolean autoBanHwid;
+    private boolean autoBanDryRun = true;
+    private boolean autoBanWeakSignals;
+    private boolean autoBanSkipOperators = true;
+    private int weakSignalReports = 2;
     private boolean privacyNotice = true;
     private int retentionDays = 90;
     private long reprobeNanos = java.util.concurrent.TimeUnit.SECONDS.toNanos(60);
@@ -71,6 +81,11 @@ public final class Guard {
             props.setProperty("requireOnlineMode", "false");
             props.setProperty("enforceFlags", "false");
             props.setProperty("kickOnHashMismatch", "true");
+            props.setProperty("autoBanHwid", "false");
+            props.setProperty("autoBanDryRun", "true");
+            props.setProperty("autoBanWeakSignals", "false");
+            props.setProperty("weakSignalReports", "2");
+            props.setProperty("autoBanSkipOperators", "true");
             props.setProperty("privacyNotice", "true");
             props.setProperty("retentionDays", "90");
             props.setProperty("reprobeSeconds", "60");
@@ -78,6 +93,12 @@ public final class Guard {
         }
         enforceFlags = Boolean.parseBoolean(props.getProperty("enforceFlags", "false").strip());
         kickOnHashMismatch = Boolean.parseBoolean(props.getProperty("kickOnHashMismatch", "true").strip());
+        autoBanHwid = Boolean.parseBoolean(props.getProperty("autoBanHwid", "false").strip());
+        autoBanDryRun = Boolean.parseBoolean(props.getProperty("autoBanDryRun", "true").strip());
+        autoBanWeakSignals = Boolean.parseBoolean(props.getProperty("autoBanWeakSignals", "false").strip());
+        autoBanSkipOperators = Boolean.parseBoolean(props.getProperty("autoBanSkipOperators", "true").strip());
+        try { weakSignalReports = Math.max(1, Integer.parseInt(props.getProperty("weakSignalReports", "2").strip())); }
+        catch (NumberFormatException bad) { weakSignalReports = 2; }
         privacyNotice = Boolean.parseBoolean(props.getProperty("privacyNotice", "true").strip());
         try { retentionDays = Integer.parseInt(props.getProperty("retentionDays", "90").strip()); }
         catch (NumberFormatException bad) { retentionDays = 90; }
@@ -130,20 +151,47 @@ public final class Guard {
         }
         List<String> strong = new ArrayList<>(), weak = new ArrayList<>();
         if (!hashMatches) strong.add("SHA-256 сборки отличается");
-        if ((r.flags() & 1) != 0) strong.add("Forge видит мод dd");
+        if ((r.flags() & 1) != 0) strong.add(R_DD);
         if ((r.flags() & 2) != 0) strong.add("JVM запущена с Java Agent");
         if ((r.flags() & 4) != 0) strong.add("JVM запущена с native agent");
-        if ((r.flags() & 8) != 0) strong.add("обнаружены признаки образца чита (имена классов или структура JAR)");
+        if ((r.flags() & 8) != 0) strong.add(R_SAMPLE);
         if ((r.flags() & 16) != 0) strong.add("в JVM есть исполняемое отображение удаленной или случайно названной SO");
         if ((r.flags() & 32) != 0) strong.add("в параметрах JVM включена отладка JDWP");
         if ((r.flags() & 64) != 0) strong.add("в JVM загружена DLL из каталога mods или DLL со случайным hex-именем");
-        if ((r.flags() & 128) != 0) strong.add("запущен другой процесс Java с JAR из семейства образца (возможный инжектор)");
-        if ((r.flags() & 256) != 0) weak.add("в памяти игры есть приватный исполняемый регион (возможна ручная загрузка кода)");
+        if ((r.flags() & 128) != 0) strong.add(R_INJECTOR);
+        if ((r.flags() & 256) != 0) weak.add(R_REGION);
         // Reports repeat, so each reason is announced once per session.
         for (String reason : strong) if (!session.signals.contains(reason)) alert(p, "средний", reason);
         for (String reason : weak) if (!session.signals.contains(reason)) alert(p, "низкий", reason);
+        session.weakStreak = (r.flags() & 256) != 0 ? session.weakStreak + 1 : 0;
+        if (autoBanHwid && !(autoBanSkipOperators && p.hasPermissions(2))) {
+            // Only cheat-specific signals ban. Generic ones (any Java agent, JDWP, deleted SO) never do.
+            String why = null;
+            if ((r.flags() & 1) != 0) why = R_DD;
+            else if ((r.flags() & 8) != 0) why = R_SAMPLE;
+            else if ((r.flags() & 128) != 0) why = R_INJECTOR;
+            else if (autoBanWeakSignals && session.weakStreak >= weakSignalReports) why = R_REGION;
+            if (why != null && autoBan(p, session, why)) return;
+        }
         if (enforceFlags && !strong.isEmpty())
             p.connection.disconnect(Component.literal("AcIvllas: обнаружена модифицированная среда клиента."));
+    }
+    /** Returns true when the player was banned and disconnected. In dry-run mode only announces and returns false. */
+    private boolean autoBan(ServerPlayer p, Session session, String why) {
+        if (autoBanDryRun) {
+            String note = "пробный режим: было бы заблокировано по железу - " + why;
+            if (!session.signals.contains(note)) alert(p, "ограничение", note);
+            return false;
+        }
+        try { bans.banInstallation(p.getUUID(), p.getGameProfile().getName(), session.token); }
+        catch (IOException ex) { LogUtils.getLogger().error("Auto ban write failed", ex); return false; }
+        alert(p, "ограничение", "автоматическая блокировка по железу: " + why);
+        LogUtils.getLogger().info("Auto hardware ban: uuid={} reason={}", p.getUUID(), why);
+        for (var online : List.copyOf(p.getServer().getPlayerList().getPlayers())) {
+            var other = sessions.get(online.connection.connection);
+            if (other != null && session.token.equals(other.token)) disconnect(online);
+        }
+        return true;
     }
     @SubscribeEvent public void join(PlayerEvent.PlayerLoggedInEvent e) {
         if (!(e.getEntity() instanceof ServerPlayer p)) return;

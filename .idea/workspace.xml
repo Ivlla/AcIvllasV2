@@ -5,31 +5,18 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="a186eff5-21d8-4a73-9ab8-4df1ebfdbac6" name="Changes" comment="fixes">
-      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/gradle.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules/client/AcIvllas.client.main.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules/client/AcIvllas.client.test.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules/server/AcIvllas.server.main.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules/server/AcIvllas.server.test.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/acivllas-diag.ps1" beforeDir="false" afterPath="$PROJECT_DIR$/acivllas-diag.ps1" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/java/org/acivllas/Sensor.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/org/acivllas/Sensor.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/main/resources/assets/acivllas/decrypt.dat" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proguard.pro" beforeDir="false" afterPath="$PROJECT_DIR$/proguard.pro" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/acivllas-diag.ps1" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/resources/META-INF/mods.toml" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/resources/META-INF/mods.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/server/src/main/java/org/acivllas/Guard.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/org/acivllas/Guard.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/src/main/java/org/acivllas/Tickets.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/org/acivllas/Tickets.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/wire/org/acivllas/Wire.java" beforeDir="false" afterPath="$PROJECT_DIR$/wire/org/acivllas/Wire.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/src/main/resources/META-INF/mods.toml" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/resources/META-INF/mods.toml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
-  </component>
-  <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="95" />
   </component>
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
@@ -348,7 +335,31 @@
       <option name="project" value="LOCAL" />
       <updated>1795517880393</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="fixes">
+      <option name="closed" value="true" />
+      <created>1795519883115</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1795519883115</updated>
+    </task>
+    <task id="LOCAL-00003" summary="fixes">
+      <option name="closed" value="true" />
+      <created>1795520039706</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1795520039706</updated>
+    </task>
+    <task id="LOCAL-00004" summary="fixes">
+      <option name="closed" value="true" />
+      <created>1795520093845</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1795520093845</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
