@@ -4,15 +4,32 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="a186eff5-21d8-4a73-9ab8-4df1ebfdbac6" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/client/src/main/resources/assets/acivllas/decrypt.dat" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/main/resources/pack.mcmeta" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="a186eff5-21d8-4a73-9ab8-4df1ebfdbac6" name="Changes" comment="fixes">
+      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/gradle.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules/client/AcIvllas.client.main.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules/client/AcIvllas.client.test.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules/server/AcIvllas.server.main.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules/server/AcIvllas.server.test.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/acivllas-diag.ps1" beforeDir="false" afterPath="$PROJECT_DIR$/acivllas-diag.ps1" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/java/org/acivllas/Sensor.java" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/main/java/org/acivllas/Sensor.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/main/resources/assets/acivllas/decrypt.dat" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proguard.pro" beforeDir="false" afterPath="$PROJECT_DIR$/proguard.pro" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/src/main/java/org/acivllas/Guard.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/org/acivllas/Guard.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/src/main/java/org/acivllas/Tickets.java" beforeDir="false" afterPath="$PROJECT_DIR$/server/src/main/java/org/acivllas/Tickets.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/wire/org/acivllas/Wire.java" beforeDir="false" afterPath="$PROJECT_DIR$/wire/org/acivllas/Wire.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="95" />
   </component>
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
@@ -67,23 +84,23 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.000169080745619" />
-      <entry key="MS500" value="1.1760430283640102" />
-      <entry key="S2" value="1.6477459521705025" />
-      <entry key="S5" value="1.8405467689780277" />
-      <entry key="S10" value="1.9168133773991451" />
-      <entry key="S30" value="1.9714646020248456" />
-      <entry key="S60" value="1.9856290387487807" />
-      <entry key="M2" value="1.9927885166281794" />
-      <entry key="M5" value="1.9971091418767322" />
-      <entry key="M10" value="1.9985535247931039" />
-      <entry key="M15" value="1.9990354505690973" />
-      <entry key="M30" value="1.9995176089339783" />
-      <entry key="H1" value="1.9997587753723287" />
-      <entry key="H2" value="1.9998793804116217" />
-      <entry key="H4" value="1.9999396883870655" />
-      <entry key="D1" value="1.999989947811898" />
-      <entry key="W1" value="1.9999985639669418" />
+      <entry key="MS100" value="1.010456373896063" />
+      <entry key="MS500" value="1.5048352103256" />
+      <entry key="S2" value="3.155180603972175" />
+      <entry key="S5" value="4.471151280845625" />
+      <entry key="S10" value="5.146321454913038" />
+      <entry key="S30" value="5.692594019293189" />
+      <entry key="S60" value="5.843228083761729" />
+      <entry key="M2" value="5.920829788341577" />
+      <entry key="M5" value="5.968141469702774" />
+      <entry key="M10" value="5.984038806563392" />
+      <entry key="M15" value="5.989352095252591" />
+      <entry key="M30" value="5.994672489571042" />
+      <entry key="H1" value="5.997335354615992" />
+      <entry key="H2" value="5.998667454683594" />
+      <entry key="H4" value="5.999333671675441" />
+      <entry key="D1" value="5.999888937546931" />
+      <entry key="W1" value="5.999984133745903" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
@@ -105,23 +122,23 @@
       <entry key="W1" value="0.0" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.9526911322335917" />
-      <entry key="MS500" value="1.130003764192052" />
-      <entry key="S2" value="1.6088970641104885" />
-      <entry key="S5" value="1.8203407653909696" />
-      <entry key="S10" value="1.9057768529328953" />
-      <entry key="S30" value="1.9675616882133176" />
-      <entry key="S60" value="1.9836484736082358" />
-      <entry key="M2" value="1.9917908721974307" />
-      <entry key="M5" value="1.996708306302097" />
-      <entry key="M10" value="1.9983528097881642" />
-      <entry key="M15" value="1.9989015744493486" />
-      <entry key="M30" value="1.9994506377988377" />
-      <entry key="H1" value="1.9997252815327455" />
-      <entry key="H2" value="1.9998626314234274" />
-      <entry key="H4" value="1.9999313133758176" />
-      <entry key="D1" value="1.9999885519048595" />
-      <entry key="W1" value="1.9999983645498915" />
+      <entry key="MS100" value="0.9615538235945893" />
+      <entry key="MS500" value="1.4794603705746876" />
+      <entry key="S2" value="3.118354450910231" />
+      <entry key="S5" value="4.4419985198968215" />
+      <entry key="S10" value="5.127648806779988" />
+      <entry key="S30" value="5.685217727569573" />
+      <entry key="S60" value="5.839377869197888" />
+      <entry key="M2" value="5.918862681938689" />
+      <entry key="M5" value="5.967344351917919" />
+      <entry key="M10" value="5.983638518602191" />
+      <entry key="M15" value="5.989084851140879" />
+      <entry key="M30" value="5.9945386744705225" />
+      <entry key="H1" value="5.997268398746509" />
+      <entry key="H2" value="5.9986339646617814" />
+      <entry key="H4" value="5.999316923641857" />
+      <entry key="D1" value="5.999886145788108" />
+      <entry key="W1" value="5.999983734912928" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -148,6 +165,7 @@
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
     "external.system.has.shared.sources": "true",
     "git-widget-placeholder": "master",
@@ -322,9 +340,22 @@
       <option name="presentableId" value="Default" />
       <updated>1795458204685</updated>
     </task>
+    <task id="LOCAL-00001" summary="fixes">
+      <option name="closed" value="true" />
+      <created>1795517880393</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1795517880393</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="fixes" />
+    <option name="LAST_COMMIT_MESSAGE" value="fixes" />
   </component>
 </project>

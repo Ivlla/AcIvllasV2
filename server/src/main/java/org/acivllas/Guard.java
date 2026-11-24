@@ -30,13 +30,16 @@ public final class Guard {
     private static final class Session {
         String token;
         String state = "ожидание отчета";
+        long nextProbe;
         final Set<String> signals = new LinkedHashSet<>();
     }
     private final Map<Connection,Session> sessions = new HashMap<>();
     private boolean offlineMode;
     private boolean enforceFlags;
+    private boolean kickOnHashMismatch = true;
     private boolean privacyNotice = true;
     private int retentionDays = 90;
+    private long reprobeNanos = java.util.concurrent.TimeUnit.SECONDS.toNanos(60);
     private DeviceLog devices;
     private String expected;
     private BanStore bans;
@@ -67,14 +70,20 @@ public final class Guard {
         else {
             props.setProperty("requireOnlineMode", "false");
             props.setProperty("enforceFlags", "false");
+            props.setProperty("kickOnHashMismatch", "true");
             props.setProperty("privacyNotice", "true");
             props.setProperty("retentionDays", "90");
+            props.setProperty("reprobeSeconds", "60");
             try (var out = Files.newOutputStream(file)) { props.store(out, "AcIvllas settings"); }
         }
         enforceFlags = Boolean.parseBoolean(props.getProperty("enforceFlags", "false").strip());
+        kickOnHashMismatch = Boolean.parseBoolean(props.getProperty("kickOnHashMismatch", "true").strip());
         privacyNotice = Boolean.parseBoolean(props.getProperty("privacyNotice", "true").strip());
         try { retentionDays = Integer.parseInt(props.getProperty("retentionDays", "90").strip()); }
         catch (NumberFormatException bad) { retentionDays = 90; }
+        try { reprobeNanos = java.util.concurrent.TimeUnit.SECONDS.toNanos(
+                Math.max(0, Integer.parseInt(props.getProperty("reprobeSeconds", "60").strip()))); }
+        catch (NumberFormatException bad) { reprobeNanos = java.util.concurrent.TimeUnit.SECONDS.toNanos(60); }
         return Boolean.parseBoolean(props.getProperty("requireOnlineMode", "false").strip());
     }
     private void receive(Wire.Report report, Supplier<NetworkEvent.Context> source) {
@@ -112,28 +121,39 @@ public final class Guard {
                     alert(p, "средний", "аппаратный идентификатор аккаунта изменился (замена платы или HWID-спуфер)");
             } catch (IOException ex) { LogUtils.getLogger().error("Device history write failed", ex); }
         }
-        List<String> reasons = new ArrayList<>();
-        if (!expected.equals(HexFormat.of().formatHex(r.digest()))) reasons.add("SHA-256 сборки отличается");
-        if ((r.flags() & 1) != 0) reasons.add("Forge видит мод dd");
-        if ((r.flags() & 2) != 0) reasons.add("JVM запущена с Java Agent");
-        if ((r.flags() & 4) != 0) reasons.add("JVM запущена с native agent");
-        if ((r.flags() & 8) != 0) reasons.add("обнаружено сочетание имен классов образца");
-        if ((r.flags() & 16) != 0) reasons.add("в JVM есть исполняемое отображение удаленной SO");
-        if ((r.flags() & 32) != 0) reasons.add("в параметрах JVM включена отладка JDWP");
-        if ((r.flags() & 64) != 0) reasons.add("в JVM загружена DLL из каталога mods");
-        if (!reasons.isEmpty()) {
-            alert(p, "средний", String.join(", ", reasons));
-            if (enforceFlags)
-                p.connection.disconnect(Component.literal("AcIvllas: обнаружена модифицированная среда клиента."));
+        boolean hashMatches = expected.equals(HexFormat.of().formatHex(r.digest()));
+        if (!hashMatches && kickOnHashMismatch) {
+            String reason = "SHA-256 сборки отличается";
+            if (!session.signals.contains(reason)) alert(p, "средний", reason);
+            p.connection.disconnect(Component.literal("AcIvllas: версия мода не совпадает с сервером. Установите актуальный мод."));
+            return;
         }
+        List<String> strong = new ArrayList<>(), weak = new ArrayList<>();
+        if (!hashMatches) strong.add("SHA-256 сборки отличается");
+        if ((r.flags() & 1) != 0) strong.add("Forge видит мод dd");
+        if ((r.flags() & 2) != 0) strong.add("JVM запущена с Java Agent");
+        if ((r.flags() & 4) != 0) strong.add("JVM запущена с native agent");
+        if ((r.flags() & 8) != 0) strong.add("обнаружены признаки образца чита (имена классов или структура JAR)");
+        if ((r.flags() & 16) != 0) strong.add("в JVM есть исполняемое отображение удаленной или случайно названной SO");
+        if ((r.flags() & 32) != 0) strong.add("в параметрах JVM включена отладка JDWP");
+        if ((r.flags() & 64) != 0) strong.add("в JVM загружена DLL из каталога mods или DLL со случайным hex-именем");
+        if ((r.flags() & 128) != 0) strong.add("запущен другой процесс Java с JAR из семейства образца (возможный инжектор)");
+        if ((r.flags() & 256) != 0) weak.add("в памяти игры есть приватный исполняемый регион (возможна ручная загрузка кода)");
+        // Reports repeat, so each reason is announced once per session.
+        for (String reason : strong) if (!session.signals.contains(reason)) alert(p, "средний", reason);
+        for (String reason : weak) if (!session.signals.contains(reason)) alert(p, "низкий", reason);
+        if (enforceFlags && !strong.isEmpty())
+            p.connection.disconnect(Component.literal("AcIvllas: обнаружена модифицированная среда клиента."));
     }
     @SubscribeEvent public void join(PlayerEvent.PlayerLoggedInEvent e) {
         if (!(e.getEntity() instanceof ServerPlayer p)) return;
         String reason = bans.reason(p.getUUID(), p.getGameProfile().getName(), offlineMode);
         if (reason != null) { p.connection.disconnect(Component.literal(reason)); return; }
-        sessions.put(p.connection.connection, new Session());
+        var fresh = new Session();
+        fresh.nextProbe = System.nanoTime() + reprobeNanos;
+        sessions.put(p.connection.connection, fresh);
         if (privacyNotice) p.sendSystemMessage(Component.literal("[AcIvllas] На сервере проверяется целостность клиента и "
-                + "необратимый отпечаток материнской платы (серийный номер не передается). "
+                + "необратимый отпечаток материнской платы (серийный номер не передается). Запущенные Java-процессы и области памяти игры проверяются локально, наружу уходит только набор флагов. "
                 + (retentionDays > 0 ? "История отпечатков хранится " + retentionDays + " дн. " : "")
                 + "Записи о блокировках хранятся до их снятия администратором."));
         var nonce = pending.issue(p.connection.connection, System.nanoTime());
@@ -142,6 +162,13 @@ public final class Guard {
     @SubscribeEvent public void tick(TickEvent.PlayerTickEvent e) {
         if (e.phase != TickEvent.Phase.END || !(e.player instanceof ServerPlayer p) || p.tickCount % 20 != 0) return;
         var conn = p.connection.connection;
+        var current = sessions.get(conn);
+        long now = System.nanoTime();
+        // Cheats are often injected after joining, so the client is asked again periodically.
+        if (current != null && reprobeNanos > 0 && current.token != null && now >= current.nextProbe && !pending.has(conn)) {
+            current.nextProbe = now + reprobeNanos;
+            Wire.CHANNEL.send(PacketDistributor.PLAYER.with(() -> p), new Wire.Probe(pending.issue(conn, now)));
+        }
         if (pending.expire(conn, System.nanoTime())) {
             var timedOut = sessions.get(conn);
             if (timedOut != null) timedOut.state = "тайм-аут";

@@ -23,6 +23,7 @@ final class Tickets<C> {
         Ticket t = pending.get(connection);
         return t != null && now - t.issued > TTL && pending.remove(connection, t);
     }
+    boolean has(C connection) { return pending.containsKey(connection); }
     void remove(C connection) { pending.remove(connection); }
     void clear() { pending.clear(); }
 }

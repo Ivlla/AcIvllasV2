@@ -13,7 +13,7 @@ import java.util.function.Supplier;
 /** Only this schema is compiled into both distributions. No packet carries an account name. */
 public final class Wire {
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-        ResourceLocation.fromNamespaceAndPath("acivllas", "integrity"), () -> "4", "4"::equals, "4"::equals);
+        ResourceLocation.fromNamespaceAndPath("acivllas", "integrity"), () -> "5", "5"::equals, "5"::equals);
     public record Probe(UUID nonce) {}
     public record Report(UUID nonce, UUID installation, UUID hardware, byte[] digest, int flags) {}
 
@@ -26,16 +26,16 @@ public final class Wire {
             return new Probe(b.readUUID());
         }, probe, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(1, Report.class, (r,b) -> {
-            b.writeUUID(r.nonce()); b.writeUUID(r.installation()); b.writeUUID(r.hardware()); b.writeBytes(r.digest()); b.writeByte(r.flags());
+            b.writeUUID(r.nonce()); b.writeUUID(r.installation()); b.writeUUID(r.hardware()); b.writeBytes(r.digest()); b.writeShort(r.flags());
         }, b -> {
-            exact(b, 81);
+            exact(b, 82);
             UUID nonce = b.readUUID();
             UUID installation = b.readUUID();
             UUID hardware = b.readUUID();
             byte[] digest = new byte[32];
             b.readBytes(digest);
-            int flags = b.readUnsignedByte();
-            if ((flags & ~127) != 0) throw new IllegalArgumentException("Unknown telemetry flags");
+            int flags = b.readUnsignedShort();
+            if ((flags & ~511) != 0) throw new IllegalArgumentException("Unknown telemetry flags");
             return new Report(nonce, installation, hardware, digest, flags);
         }, report, Optional.of(NetworkDirection.PLAY_TO_SERVER));
     }

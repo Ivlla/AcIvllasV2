@@ -11,12 +11,14 @@ public static class AcMem {
   [StructLayout(LayoutKind.Sequential)] public struct MBI {
     public IntPtr BaseAddress; public IntPtr AllocationBase; public uint AllocationProtect;
     public ushort PartitionId; public IntPtr RegionSize; public uint State; public uint Protect; public uint Type; }
+  [DllImport("kernel32.dll")] public static extern IntPtr OpenProcess(uint access, bool inherit, int pid);
   [DllImport("kernel32.dll")] public static extern IntPtr VirtualQueryEx(IntPtr p, IntPtr a, out MBI b, IntPtr l);
 }
 "@
+$h = [AcMem]::OpenProcess(0x0410, $false, $proc.Id)
 $L = New-Object System.Collections.Generic.List[string]
 $L.Add("Java processes: " + (($cands | ForEach-Object { "$($_.ProcessId):$($_.Name)" }) -join ', '))
-$L.Add("PID $($proc.Id), start $($proc.StartTime)")
+$L.Add("PID $($proc.Id), start $($proc.StartTime), handle: $h")
 $L.Add("JVM flags: " + (([regex]::Matches($cmd,'-(javaagent|agentlib|agentpath|XX|Xbootclasspath)\S*') | ForEach-Object { $_.Value }) -join ' '))
 $L.Add("--- MODULES (path | size | signature)")
 $ranges = @()
@@ -34,7 +36,7 @@ $L.Add("--- PRIVATE EXECUTABLE REGIONS (base | size | protect)")
 $sz = [Runtime.InteropServices.Marshal]::SizeOf([type]'AcMem+MBI'); $addr = [UInt64]0; $n = 0
 while ($addr -lt 0x7FFFFFFFFFFF) {
   $mbi = New-Object 'AcMem+MBI'
-  if ([AcMem]::VirtualQueryEx($proc.Handle, [IntPtr][Int64]$addr, [ref]$mbi, [IntPtr]$sz) -eq [IntPtr]::Zero) { break }
+  if ([AcMem]::VirtualQueryEx($h, [IntPtr][Int64]$addr, [ref]$mbi, [IntPtr]$sz) -eq [IntPtr]::Zero) { break }
   $len = [UInt64]$mbi.RegionSize.ToInt64(); $p = $mbi.Protect -band 0xFF
   if ($mbi.State -eq 0x1000 -and $mbi.Type -eq 0x20000 -and (0x10,0x20,0x40,0x80 -contains $p)) {
     $n++; $L.Add(("0x{0:X} | {1} | 0x{2:X}" -f [UInt64]$mbi.BaseAddress.ToInt64(), $len, $p)) }
