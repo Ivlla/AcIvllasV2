@@ -13,11 +13,6 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.event.entity.player.AttackEntityEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.event.level.BlockEvent;
-import net.minecraftforge.common.util.FakePlayer;
-import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.event.server.*;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -39,7 +34,6 @@ public final class Guard {
     private final Map<Connection,Session> sessions = new HashMap<>();
     private boolean offlineMode;
     private boolean enforceFlags;
-    private boolean checkMeleeReach;
     private boolean kickOnHashMismatch = true;
     private boolean autoBanHwid;
     private boolean autoBanDryRun = true;
@@ -79,7 +73,6 @@ public final class Guard {
         else {
             props.setProperty("requireOnlineMode", "false");
             props.setProperty("enforceFlags", "false");
-            props.setProperty("checkMeleeReach", "true");
             props.setProperty("kickOnHashMismatch", "true");
             props.setProperty("autoBanHwid", "false");
             props.setProperty("autoBanDryRun", "true");
@@ -91,7 +84,6 @@ public final class Guard {
             props.setProperty("reprobeSeconds", "60");
             try (var out = Files.newOutputStream(file)) { props.store(out, "AcIvllas settings"); }
         }
-        checkMeleeReach = Boolean.parseBoolean(props.getProperty("checkMeleeReach", "true").strip());
         enforceFlags = Boolean.parseBoolean(props.getProperty("enforceFlags", "false").strip());
         kickOnHashMismatch = Boolean.parseBoolean(props.getProperty("kickOnHashMismatch", "true").strip());
         autoBanHwid = Boolean.parseBoolean(props.getProperty("autoBanHwid", "false").strip());
@@ -198,29 +190,6 @@ public final class Guard {
         return true;
     }
 
-    private boolean awaitingReport(ServerPlayer player) {
-        Session session = sessions.get(player.connection.connection);
-        return session == null || session.token == null;
-    }
-
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void attack(AttackEntityEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player) || player instanceof FakePlayer) return;
-        if (awaitingReport(player) || (checkMeleeReach && !player.canReach(event.getTarget(), 0.5D)))
-            event.setCanceled(true);
-    }
-
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void interact(PlayerInteractEvent event) {
-        if (event.isCancelable() && event.getEntity() instanceof ServerPlayer player &&
-                !(player instanceof FakePlayer) && awaitingReport(player)) event.setCanceled(true);
-    }
-
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void breakBlock(BlockEvent.BreakEvent event) {
-        if (event.getPlayer() instanceof ServerPlayer player && !(player instanceof FakePlayer) &&
-                awaitingReport(player)) event.setCanceled(true);
-    }
     @SubscribeEvent public void join(PlayerEvent.PlayerLoggedInEvent e) {
         if (!(e.getEntity() instanceof ServerPlayer p)) return;
         String reason = bans.reason(p.getUUID(), p.getGameProfile().getName(), offlineMode);
