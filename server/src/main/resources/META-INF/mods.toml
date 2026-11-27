@@ -3,7 +3,7 @@ loaderVersion="[47,48)"
 license="AcIvllas Proprietary License"
 [[mods]]
 modId="acivllas"
-version="2.2.1"
+version="2.2.2"
 displayName="AcIvllas (server)"
 description="AcIvllas integrity reporting for dedicated servers."
 [[dependencies.acivllas]]

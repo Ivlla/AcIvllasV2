@@ -13,6 +13,11 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.player.AttackEntityEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.common.util.FakePlayer;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.event.server.*;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -27,13 +32,6 @@ import java.util.function.Supplier;
 public final class Guard {
     /** Network thread may consume a ticket once. All gameplay and persistent state is server-thread owned. */
     private final Tickets<Connection> pending = new Tickets<>();
-    private static final class Session {
-        String token;
-        String state = "ожидание отчета";
-        long nextProbe;
-        int weakStreak;
-        final Set<String> signals = new LinkedHashSet<>();
-    }
     private static final String R_DD = "Forge видит мод dd";
     private static final String R_SAMPLE = "обнаружены признаки образца чита (имена классов или структура JAR)";
     private static final String R_INJECTOR = "запущен другой процесс Java с JAR из семейства образца (возможный инжектор)";
@@ -41,6 +39,7 @@ public final class Guard {
     private final Map<Connection,Session> sessions = new HashMap<>();
     private boolean offlineMode;
     private boolean enforceFlags;
+    private boolean checkMeleeReach;
     private boolean kickOnHashMismatch = true;
     private boolean autoBanHwid;
     private boolean autoBanDryRun = true;
@@ -80,6 +79,7 @@ public final class Guard {
         else {
             props.setProperty("requireOnlineMode", "false");
             props.setProperty("enforceFlags", "false");
+            props.setProperty("checkMeleeReach", "true");
             props.setProperty("kickOnHashMismatch", "true");
             props.setProperty("autoBanHwid", "false");
             props.setProperty("autoBanDryRun", "true");
@@ -91,6 +91,7 @@ public final class Guard {
             props.setProperty("reprobeSeconds", "60");
             try (var out = Files.newOutputStream(file)) { props.store(out, "AcIvllas settings"); }
         }
+        checkMeleeReach = Boolean.parseBoolean(props.getProperty("checkMeleeReach", "true").strip());
         enforceFlags = Boolean.parseBoolean(props.getProperty("enforceFlags", "false").strip());
         kickOnHashMismatch = Boolean.parseBoolean(props.getProperty("kickOnHashMismatch", "true").strip());
         autoBanHwid = Boolean.parseBoolean(props.getProperty("autoBanHwid", "false").strip());
@@ -102,8 +103,10 @@ public final class Guard {
         privacyNotice = Boolean.parseBoolean(props.getProperty("privacyNotice", "true").strip());
         try { retentionDays = Integer.parseInt(props.getProperty("retentionDays", "90").strip()); }
         catch (NumberFormatException bad) { retentionDays = 90; }
-        try { reprobeNanos = java.util.concurrent.TimeUnit.SECONDS.toNanos(
-                Math.max(0, Integer.parseInt(props.getProperty("reprobeSeconds", "60").strip()))); }
+        try {
+            int seconds = Integer.parseInt(props.getProperty("reprobeSeconds", "60").strip());
+            reprobeNanos = java.util.concurrent.TimeUnit.SECONDS.toNanos(seconds <= 0 ? 0 : Math.max(15, seconds));
+        }
         catch (NumberFormatException bad) { reprobeNanos = java.util.concurrent.TimeUnit.SECONDS.toNanos(60); }
         return Boolean.parseBoolean(props.getProperty("requireOnlineMode", "false").strip());
     }
@@ -122,31 +125,26 @@ public final class Guard {
     private void inspect(ServerPlayer p, Wire.Report r) {
         Session session = sessions.get(p.connection.connection);
         if (session == null) return;
-        if (r.hardware().equals(new UUID(0, 0))) {
-            session.state = "аппаратный идентификатор недоступен";
-            p.connection.disconnect(Component.literal("AcIvllas: не удалось получить идентификатор материнской платы."));
+        if (Session.EMPTY_ID.equals(r.hardware())) {
+            disconnect(p, "AcIvllas: не удалось получить идентификатор материнской платы.");
             return;
         }
-        session.token = bans.token(r.hardware());
-        session.state = "отчет проверен";
-        if (bans.deviceBanned(session.token) || bans.deviceBanned(bans.token(r.installation()))) {
-            alert(p, "ограничение", "действующая блокировка устройства");
+        String token = bans.token(r.hardware());
+        if (!session.matchesIdentity(token, r.installation())) {
+            alert(p, "средний", "недопустимый или изменившийся идентификатор в сеансе");
             disconnect(p);
             return;
         }
-        if (retentionDays > 0) {
-            try {
-                String previous = devices.observe(p.getUUID(), session.token,
-                        java.time.LocalDate.now().toEpochDay(), retentionDays);
-                if (previous != null)
-                    alert(p, "средний", "аппаратный идентификатор аккаунта изменился (замена платы или HWID-спуфер)");
-            } catch (IOException ex) { LogUtils.getLogger().error("Device history write failed", ex); }
+        if (bans.deviceBanned(token) || bans.deviceBanned(bans.token(r.installation()))) {
+            alert(p, "ограничение", "действующая блокировка устройства");
+            disconnect(p);
+            return;
         }
         boolean hashMatches = expected.equals(HexFormat.of().formatHex(r.digest()));
         if (!hashMatches && kickOnHashMismatch) {
             String reason = "SHA-256 сборки отличается";
             if (!session.signals.contains(reason)) alert(p, "средний", reason);
-            p.connection.disconnect(Component.literal("AcIvllas: версия мода не совпадает с сервером. Установите актуальный мод."));
+            disconnect(p, "AcIvllas: версия мода не совпадает с сервером. Установите актуальный мод.");
             return;
         }
         List<String> strong = new ArrayList<>(), weak = new ArrayList<>();
@@ -165,40 +163,69 @@ public final class Guard {
         for (String reason : weak) if (!session.signals.contains(reason)) alert(p, "низкий", reason);
         session.weakStreak = (r.flags() & 256) != 0 ? session.weakStreak + 1 : 0;
         if (autoBanHwid && !(autoBanSkipOperators && p.hasPermissions(2))) {
-            // Only cheat-specific signals ban. Generic ones (any Java agent, JDWP, deleted SO) never do.
+            // Keep the existing opt-in settings, but limit automatic sanctions to this connection.
             String why = null;
             if ((r.flags() & 1) != 0) why = R_DD;
             else if ((r.flags() & 8) != 0) why = R_SAMPLE;
             else if ((r.flags() & 128) != 0) why = R_INJECTOR;
             else if (autoBanWeakSignals && session.weakStreak >= weakSignalReports) why = R_REGION;
-            if (why != null && autoBan(p, session, why)) return;
+            if (why != null && actOnReport(p, session, why)) return;
         }
-        if (enforceFlags && !strong.isEmpty())
-            p.connection.disconnect(Component.literal("AcIvllas: обнаружена модифицированная среда клиента."));
+        if (enforceFlags && !strong.isEmpty()) {
+            disconnect(p, "AcIvllas: обнаружена модифицированная среда клиента.");
+            return;
+        }
+        session.accept(token, r.installation(), System.nanoTime(), reprobeNanos);
+        if (retentionDays > 0) {
+            try {
+                String previous = devices.observe(p.getUUID(), token,
+                        java.time.LocalDate.now().toEpochDay(), retentionDays);
+                if (previous != null)
+                    alert(p, "средний", "аппаратный идентификатор аккаунта изменился (замена платы или HWID-спуфер)");
+            } catch (IOException ex) { LogUtils.getLogger().error("Device history write failed", ex); }
+        }
     }
-    /** Returns true when the player was banned and disconnected. In dry-run mode only announces and returns false. */
-    private boolean autoBan(ServerPlayer p, Session session, String why) {
+
+    private boolean actOnReport(ServerPlayer p, Session session, String why) {
         if (autoBanDryRun) {
-            String note = "пробный режим: было бы заблокировано по железу - " + why;
+            String note = "пробный режим: игрок был бы отключён - " + why;
             if (!session.signals.contains(note)) alert(p, "ограничение", note);
             return false;
         }
-        try { bans.banInstallation(p.getUUID(), p.getGameProfile().getName(), session.token); }
-        catch (IOException ex) { LogUtils.getLogger().error("Auto ban write failed", ex); return false; }
-        alert(p, "ограничение", "автоматическая блокировка по железу: " + why);
-        LogUtils.getLogger().info("Auto hardware ban: uuid={} reason={}", p.getUUID(), why);
-        for (var online : List.copyOf(p.getServer().getPlayerList().getPlayers())) {
-            var other = sessions.get(online.connection.connection);
-            if (other != null && session.token.equals(other.token)) disconnect(online);
-        }
+        // Device identifiers and flags are supplied by the peer. Only restrict this connection.
+        alert(p, "ограничение", "автоматическое отключение: " + why);
+        disconnect(p);
         return true;
+    }
+
+    private boolean awaitingReport(ServerPlayer player) {
+        Session session = sessions.get(player.connection.connection);
+        return session == null || session.token == null;
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void attack(AttackEntityEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player) || player instanceof FakePlayer) return;
+        if (awaitingReport(player) || (checkMeleeReach && !player.canReach(event.getTarget(), 0.5D)))
+            event.setCanceled(true);
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void interact(PlayerInteractEvent event) {
+        if (event.isCancelable() && event.getEntity() instanceof ServerPlayer player &&
+                !(player instanceof FakePlayer) && awaitingReport(player)) event.setCanceled(true);
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void breakBlock(BlockEvent.BreakEvent event) {
+        if (event.getPlayer() instanceof ServerPlayer player && !(player instanceof FakePlayer) &&
+                awaitingReport(player)) event.setCanceled(true);
     }
     @SubscribeEvent public void join(PlayerEvent.PlayerLoggedInEvent e) {
         if (!(e.getEntity() instanceof ServerPlayer p)) return;
         String reason = bans.reason(p.getUUID(), p.getGameProfile().getName(), offlineMode);
-        if (reason != null) { p.connection.disconnect(Component.literal(reason)); return; }
+        if (reason != null) { disconnect(p, reason); return; }
         var fresh = new Session();
-        fresh.nextProbe = System.nanoTime() + reprobeNanos;
         sessions.put(p.connection.connection, fresh);
         if (privacyNotice) p.sendSystemMessage(Component.literal("[AcIvllas] На сервере проверяется целостность клиента и "
                 + "необратимый отпечаток материнской платы (серийный номер не передается). Запущенные Java-процессы и области памяти игры проверяются локально, наружу уходит только набор флагов. "
@@ -213,15 +240,12 @@ public final class Guard {
         var current = sessions.get(conn);
         long now = System.nanoTime();
         // Cheats are often injected after joining, so the client is asked again periodically.
-        if (current != null && reprobeNanos > 0 && current.token != null && now >= current.nextProbe && !pending.has(conn)) {
-            current.nextProbe = now + reprobeNanos;
+        if (current != null && current.beginReprobe(now, reprobeNanos)) {
             Wire.CHANNEL.send(PacketDistributor.PLAYER.with(() -> p), new Wire.Probe(pending.issue(conn, now)));
         }
         if (pending.expire(conn, System.nanoTime())) {
-            var timedOut = sessions.get(conn);
-            if (timedOut != null) timedOut.state = "тайм-аут";
             alert(p, "низкий", "истекло время ответа сенсора");
-            p.connection.disconnect(Component.literal("AcIvllas: время ответа истекло. Переподключитесь."));
+            disconnect(p, "AcIvllas: время ответа истекло. Переподключитесь.");
         }
     }
     @SubscribeEvent public void leave(PlayerEvent.PlayerLoggedOutEvent e) {
@@ -240,8 +264,14 @@ public final class Guard {
         for (var moderator : p.getServer().getPlayerList().getPlayers())
             if (moderator.hasPermissions(2)) moderator.sendSystemMessage(Component.literal(text));
     }
-    private static void disconnect(ServerPlayer p) {
-        p.connection.disconnect(Component.literal("AcIvllas: доступ ограничен администратором"));
+    private void disconnect(ServerPlayer p, String message) {
+        sessions.remove(p.connection.connection);
+        pending.remove(p.connection.connection);
+        p.connection.disconnect(Component.literal(message));
+    }
+
+    private void disconnect(ServerPlayer p) {
+        disconnect(p, "AcIvllas: доступ ограничен администратором");
     }
     @SubscribeEvent public void commands(RegisterCommandsEvent e) {
         var root = Commands.literal("ac").requires(s -> s.hasPermission(3));
@@ -292,7 +322,7 @@ public final class Guard {
             catch (IOException ex) { return storageError(c.getSource(), ex); }
             c.getSource().sendSuccess(() -> Component.literal("Заблокирован аккаунт " + p.getGameProfile().getName() + ": " + reason), true);
             LogUtils.getLogger().info("Account ban: uuid={} admin={} reason={}", p.getUUID(), c.getSource().getTextName(), reason);
-            p.connection.disconnect(Component.literal(reason));
+            disconnect(p, reason);
             return 1;
         }))));
         root.then(Commands.literal("unbanhwid").then(Commands.argument("target", StringArgumentType.word()).executes(c -> {

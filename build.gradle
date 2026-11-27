@@ -5,7 +5,7 @@ subprojects {
     apply plugin: 'java'
     apply plugin: 'net.minecraftforge.gradle'
     group = 'org.acivllas'
-    version = '2.2.1'
+    version = '2.2.2'
     base.archivesName = "acivllas-${project.name}"
     java.toolchain.languageVersion = JavaLanguageVersion.of(17)
     sourceSets.main.java.srcDir(rootProject.file('wire'))
