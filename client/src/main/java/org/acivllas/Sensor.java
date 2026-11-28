@@ -18,7 +18,7 @@ import net.minecraftforge.network.NetworkEvent;
 public final class Sensor {
     private final byte[] digest = digestJar();
     private final UUID installation = loadInstallation();
-    private final UUID hardware = HardwareIdentity.read();
+    private final UUID hardware = HardwareIdentity.read(installation);
     private net.minecraft.network.Connection lastConnection;
     private long lastAnswer;
     private static final long MIN_GAP = java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
