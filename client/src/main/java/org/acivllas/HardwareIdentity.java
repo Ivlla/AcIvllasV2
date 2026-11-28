@@ -24,7 +24,7 @@ final class HardwareIdentity {
             "default string", "to be filled by o.e.m.", "to be filled by oem",
             "system serial number", "not specified", "not applicable", "n/a",
             "not available", "not set", "invalid", "undefined", "00000000",
-            "ffffffff", "12345678");
+            "ffffffff", "12345678", "03000200-0400-0500-0006-000700080009");
 
     private HardwareIdentity() {}
 
@@ -48,11 +48,10 @@ final class HardwareIdentity {
 
             // Last hardware-based option: a chassis/system or firmware serial.
             String systemSerial = normalize(computer.getSerialNumber());
-            String firmwareSerial = normalize(computer.getFirmware().getSerialNumber());
-            if (valid(systemSerial) || valid(firmwareSerial)) {
+            if (valid(systemSerial)) {
                 String identity = "acivllas:system-serial:v1|" + systemSerial + "|"
-                        + firmwareSerial + "|" + normalize(board.getManufacturer())
-                        + "|" + normalize(board.getModel());
+                        + normalize(computer.getManufacturer()) + "|" + normalize(computer.getModel())
+                        + "|" + normalize(board.getManufacturer()) + "|" + normalize(board.getModel());
                 return fingerprint(identity);
             }
         } catch (RuntimeException | LinkageError unavailable) {
