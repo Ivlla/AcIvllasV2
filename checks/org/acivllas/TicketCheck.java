@@ -19,6 +19,22 @@ public final class TicketCheck {
         require(!tickets.accept("first", current, 71 + Tickets.TTL));
         require(tickets.expire("first", 71 + Tickets.TTL));
         require(!tickets.expire("first", 72 + Tickets.TTL));
+        Session session = new Session();
+        UUID installation = UUID.randomUUID();
+        require(!session.beginReprobe(10, 15));
+        require(!session.matchesIdentity("device", Session.EMPTY_ID));
+        require(session.matchesIdentity("device", installation));
+        session.accept("device", installation, 20, 15);
+        require(session.matchesIdentity("device", installation));
+        require(!session.matchesIdentity("different", installation));
+        require(!session.matchesIdentity("device", UUID.randomUUID()));
+        require(!session.beginReprobe(34, 15));
+        require(session.beginReprobe(35, 15));
+        require(!session.beginReprobe(55, 15)); // network ticket consumed, main-thread inspection still queued
+        session.accept("device", installation, 60, 15);
+        require(!session.beginReprobe(74, 15));
+        require(!session.beginReprobe(75, 0));
+        require(session.beginReprobe(75, 15));
         System.out.println("TicketCheck OK");
     }
     static void require(boolean ok) { if (!ok) throw new AssertionError(); }

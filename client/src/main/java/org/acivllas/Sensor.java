@@ -24,7 +24,6 @@ public final class Sensor {
     private static final long MIN_GAP = java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
     public Sensor() {
         Wire.register(this::answer, (r,ctx) -> ctx.get().setPacketHandled(true));
-        ProcessGuard.harden();
     }
     private synchronized void answer(Wire.Probe probe, Supplier<NetworkEvent.Context> context) {
         var ctx = context.get();
@@ -34,7 +33,6 @@ public final class Sensor {
         if (ctx.getNetworkManager() == lastConnection && now - lastAnswer < MIN_GAP) return;
         lastConnection = ctx.getNetworkManager();
         lastAnswer = now;
-        ProcessGuard.harden();
         int flags = ModList.get().isLoaded("dd") ? 1 : 0;
         for (String arg : ManagementFactory.getRuntimeMXBean().getInputArguments()) {
             if (arg.startsWith("-javaagent:") && !launcherAgent(arg)) flags |= 2;
