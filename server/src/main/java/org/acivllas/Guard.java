@@ -201,7 +201,7 @@ public final class Guard {
         fresh.nextProbe = System.nanoTime() + reprobeNanos;
         sessions.put(p.connection.connection, fresh);
         if (privacyNotice) p.sendSystemMessage(Component.literal("[AcIvllas] На сервере проверяется целостность клиента и "
-                + "необратимый отпечаток материнской платы (серийный номер не передается). Запущенные Java-процессы и области памяти игры проверяются локально, наружу уходит только набор флагов. "
+                + "необратимый отпечаток устройства (сырые серийные номера не передаются; если аппаратные данные недоступны, используется стабильный ID установки). Запущенные Java-процессы и области памяти игры проверяются локально, наружу уходит только набор флагов. "
                 + (retentionDays > 0 ? "История отпечатков хранится " + retentionDays + " дн. " : "")
                 + "Записи о блокировках хранятся до их снятия администратором."));
         var nonce = pending.issue(p.connection.connection, System.nanoTime());
@@ -276,7 +276,7 @@ public final class Guard {
                     var other = sessions.get(online.connection.connection);
                     if (other != null && session.token.equals(other.token)) disconnect(online);
                 }
-                c.getSource().sendSuccess(() -> Component.literal("Игрок заблокирован по идентификатору материнской платы"), true);
+                c.getSource().sendSuccess(() -> Component.literal("Игрок заблокирован по идентификатору устройства/установки"), true);
                 LogUtils.getLogger().info("Hardware ban: uuid={} admin={}", p.getUUID(), c.getSource().getTextName());
                 return 1;
             })));
